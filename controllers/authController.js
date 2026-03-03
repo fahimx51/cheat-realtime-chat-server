@@ -31,3 +31,27 @@ exports.register = async (req, res) => {
     }
 
 };
+
+
+exports.login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const user = await User.findOne({ email: email.trim().toLowerCase() });
+
+        if (!user) {
+            return res.status(400).send({ messege: "Invalid user email" });
+        }
+
+        const isMatched = await bcryptjs.compare(password, user.password);
+
+        if (!isMatched) {
+            return res.status(400).send({ messege: "Incorrect password" });
+        }
+
+        res.status(201).send(user);
+    }
+
+    catch (error) {
+        res.status(500).json({ messege: error.messege });
+    }
+};
