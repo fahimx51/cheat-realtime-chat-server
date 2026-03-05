@@ -1,9 +1,12 @@
+const http = require('http');
 const express = require('express');
 require('dotenv').config();
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const messegesRoutes = require('./routes/messegesRoute');
+const { Server } = require('socket.io');
+const socketHandlers = require('./utils/socketHandlers');
 
 const PORT = process.env.PORT || 3000;
 
@@ -12,6 +15,12 @@ app.use(express.json());
 
 
 connectDB();
+
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
+
+
+socketHandlers(io);
 
 
 app.get('/', (req, res) => {
@@ -22,6 +31,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/messages', messegesRoutes);
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`App is listen from port ${PORT}`);
 }); 
