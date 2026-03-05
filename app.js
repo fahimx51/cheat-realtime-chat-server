@@ -3,6 +3,7 @@ require('dotenv').config();
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const messegesRoutes = require('./routes/messegesRoute');
 
 const PORT = process.env.PORT || 3000;
 
@@ -19,6 +20,7 @@ app.get('/', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/messeges', messegesRoutes);
 
 app.listen(PORT, () => {
     console.log(`App is listen from port ${PORT}`);
