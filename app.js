@@ -8,11 +8,14 @@ const messegesRoutes = require('./routes/messegesRoute');
 const { Server } = require('socket.io');
 const socketHandlers = require('./utils/socketHandlers');
 const jwt = require('jsonwebtoken');
+const cors = require('cors');
 
 const PORT = process.env.PORT || 3000;
 
 const app = express();
 app.use(express.json());
+
+app.use(cors());
 
 
 connectDB();
