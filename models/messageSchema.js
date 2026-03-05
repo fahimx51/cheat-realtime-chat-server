@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const messageSchema = new mongoose.Schema({
     conversationId: {
         type: String,
-        required
+        require: true
     },
     senderId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -27,4 +27,4 @@ const messageSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-module.exports = mongoose.model('message', messegeSchema);
+module.exports = mongoose.model('message', messageSchema);
