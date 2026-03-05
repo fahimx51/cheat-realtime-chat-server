@@ -3,22 +3,22 @@ const mongoose = require('mongoose');
 const messageSchema = new mongoose.Schema({
     conversationId: {
         type: String,
-        require: true
+        required: true
     },
     senderId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'user',
-        require: true
+        required: true
     },
-    receipientId: {
+    recipientId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'user',
-        require: true
+        required: true
     },
 
     text: {
         type: String,
-        require: false
+        required: false
     },
 
     fileUrl: { type: String },

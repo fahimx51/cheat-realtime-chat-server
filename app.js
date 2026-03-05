@@ -20,7 +20,7 @@ app.get('/', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
-app.use('/api/messeges', messegesRoutes);
+app.use('/api/messages', messegesRoutes);
 
 app.listen(PORT, () => {
     console.log(`App is listen from port ${PORT}`);
