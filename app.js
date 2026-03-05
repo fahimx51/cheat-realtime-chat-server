@@ -7,6 +7,7 @@ const userRoutes = require('./routes/userRoutes');
 const messegesRoutes = require('./routes/messegesRoute');
 const { Server } = require('socket.io');
 const socketHandlers = require('./utils/socketHandlers');
+const jwt = require('jsonwebtoken');
 
 const PORT = process.env.PORT || 3000;
 
@@ -19,6 +20,21 @@ connectDB();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
+io.use((socket, next) => {
+    // const token = socket.handshake.auth.token;
+    const token = socket.handshake.query.token;
+
+    if (!token) return next(new Error("Auth Error"));
+
+    jwt.verify(token, process.env.JWT_SECRET, (error, decoded) => {
+        if (error) {
+            return next(new Error("Token Error"));
+        }
+
+        socket.userId = decoded.id;
+        next();
+    });
+});
 
 socketHandlers(io);
 
