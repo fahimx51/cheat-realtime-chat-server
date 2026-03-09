@@ -21,20 +21,36 @@ app.use(cors());
 connectDB();
 
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+
+const io = new Server(server, {
+    cors: {
+        origin: "http://localhost:5173", // Use your EXACT frontend port
+        methods: ["GET", "POST"],
+        credentials: true
+    },
+    // This forces the browser to try WebSockets immediately
+    transports: ['websocket', 'polling']
+});
 
 io.use((socket, next) => {
-    // const token = socket.handshake.auth.token;
-    const token = socket.handshake.query.token;
+    // Check every possible place the token could be
+    const token = socket.handshake.auth?.token ||
+        socket.handshake.query?.token ||
+        socket.request._query?.token;
 
-    if (!token) return next(new Error("Auth Error"));
+    if (!token) {
+        console.log("❌ Socket Reject: No token provided");
+        return next(new Error("Authentication error"));
+    }
 
     jwt.verify(token, process.env.JWT_SECRET, (error, decoded) => {
         if (error) {
-            return next(new Error("Token Error"));
+            console.log("❌ Socket Reject: Invalid token");
+            return next(new Error("Authentication error"));
         }
-
-        socket.userId = decoded.id;
+        // Ensure this matches your JWT sign payload (id or _id)
+        socket.userId = decoded.id || decoded._id;
+        console.log(`✅ Socket Authenticated: ${socket.userId}`);
         next();
     });
 });

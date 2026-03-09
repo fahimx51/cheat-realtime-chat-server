@@ -4,130 +4,110 @@ const mongoose = require('mongoose');
 
 exports.sendMessege = async (req, res) => {
     try {
-        const senderId = new mongoose.Types.ObjectId(req.body.senderId);
-        const targetId = new mongoose.Types.ObjectId(req.body.recipientId);
+        const senderId = req.user._id || req.user.id;
+        const targetId = req.body.recipientId;
 
-        let text = req.body.text;
+        if (!targetId) return res.status(400).json({ message: "Recipient ID required" });
 
+        // 1. Find existing conversation using $all
         let conversation = await Conversation.findOne({
-            participants: {
-                $all: [senderId, targetId],
-            }
+            participants: { $all: [senderId, targetId] }
         });
 
+        // 2. If it doesn't exist, create a new one
         if (!conversation) {
             conversation = await Conversation.create({
                 participants: [senderId, targetId]
             });
         }
 
-        let newMsg = await Message.create({
+        // 3. Create the message
+        const newMsg = await Message.create({
             conversationId: conversation._id.toString(),
-            senderId: senderId,
+            senderId,
             recipientId: targetId,
-            text: text?.trim() || '',
+            text: req.body.text?.trim() || '',
             fileUrl: req.body?.fileUrl || null,
             fileType: req.body?.fileType || null
         });
 
+        // 4. Update the conversation metadata
         conversation.lastMessage = newMsg._id;
-        conversation.lastMessageText = text?.trim() || (fileUrl ? "[file]" : "");
-
+        conversation.lastMessageText = newMsg.text || "Sent an attachment";
         await conversation.save();
 
         res.status(201).json({
             status: 'Success',
             data: newMsg
-        })
-    }
-
-    catch (error) {
-        console.log("Send messege error", error.message);
-
-        res.status(500).json({
-            status: "failed to send msg",
-            error: error.message
         });
-
-    }
-};
-
-
-exports.getChatHistory = async (req, res) => {
-    try {
-        const { conversationId } = req.params;
-        const myId = req.body.userId;
-
-        // const conversation = await Conversation.findOne({
-        //     participants: { $all: [myId, conversationId] }
-        // });
-
-        if (!conversationId) return res.json([]);
-
-        const message = await Message.find({
-            conversationId: conversationId
-        }).sort({ createdAt: 1 });
-
-        res.send(message);
-    }
-    catch (error) {
-        console.log("getting chat history error", error.message);
-
-        res.status(500).json({
-            status: "failed to get chat history",
-            error: error.message
-        });
-
+    } catch (error) {
+        console.error("🔥 Send message error:", error.message);
+        res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
 };
 
 exports.uploadFile = async (req, res) => {
     try {
-        const { recipientId, text, senderId } = req.body;
+        const { recipientId, text } = req.body;
+        const senderId = req.user._id || req.user.id; // Get from Auth, not body
 
         if (!req.file) return res.status(400).json({ message: 'No File Provided' });
-        if (!recipientId) return res.status(400).json({ message: 'Recipient id is missing' });
 
-        const sId = new mongoose.Types.ObjectId(senderId);
-        const tId = new mongoose.Types.ObjectId(recipientId);
+        // USE THE SAME UPSERT LOGIC HERE
+        let conversation = await Conversation.findOneAndUpdate(
+            { participants: { $all: [senderId, recipientId] } },
+            { $set: { participants: [senderId, recipientId] } },
+            { upsert: true, new: true }
+        );
 
-        // 1. Find or Create the conversation using $all
-        let conversation = await Conversation.findOne({
-            participants: { $all: [sId, tId] }
-        });
-
-        if (!conversation) {
-            conversation = await Conversation.create({
-                participants: [sId, tId]
-            });
-        }
-
-        // 2. Create the message with the file data
-        // Assuming 'req.file.path' or 'req.file.location' contains the URL
         const newMsg = await Message.create({
             conversationId: conversation._id,
-            senderId: sId,
-            recipientId: tId,
+            senderId,
+            recipientId,
             text: text || "",
-            fileUrl: req.file.path, // Path provided by Multer/Cloudinary
-            fileType: req.file.mimetype // e.g., 'image/png' or 'application/pdf'
+            fileUrl: req.file.path,
+            fileType: req.file.mimetype
         });
 
-        // 3. Update the last message in the conversation
         conversation.lastMessage = newMsg._id;
         conversation.lastMessageText = text || `Sent an attachment`;
         await conversation.save();
 
-        res.status(201).json({ status: 'Success', data: newMsg });
-
+        // Standardize the response to match sendMessege
+        res.status(201).json({
+            status: 'Success',
+            data: newMsg
+        });
+    } catch (error) {
+        res.status(500).json({ status: "failed", error: error.message });
     }
-    catch (error) {
-        console.log("file upload failed", error.message);
+};
 
-        res.status(500).json({
-            status: "failed to upload file",
-            error: error.message
+// Add this back to your messageController.js
+exports.getChatHistory = async (req, res) => {
+    try {
+        const { conversationId: recipientId } = req.params;
+        const myId = req.user._id || req.user.id;
+
+        if (!recipientId || recipientId === "undefined") {
+            return res.status(400).json({ message: "Invalid recipient ID" });
+        }
+
+        const conversation = await Conversation.findOne({
+            participants: { $all: [myId, recipientId] }
         });
 
+        if (!conversation) {
+            return res.status(200).json([]);
+        }
+
+        const messages = await Message.find({
+            conversationId: conversation._id
+        }).sort({ createdAt: 1 });
+
+        res.status(200).json(messages);
+    } catch (error) {
+        console.error("Chat history error:", error.message);
+        res.status(500).json({ status: "failed", message: error.message });
     }
 };
